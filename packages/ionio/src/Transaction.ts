@@ -21,6 +21,7 @@ import {
   UnblindedOutput,
   isConfidentialOutput,
 } from 'ldk';
+import randomBytes from 'randombytes';
 
 export interface TransactionInterface {
   psbt: Psbt;
@@ -33,7 +34,8 @@ export interface TransactionInterface {
   withOpReturn(
     value: number,
     assetID: string,
-    hexChunks: string[]
+    hexChunks: string[],
+    makeConfidential: boolean
   ): TransactionInterface;
   withFeeOutput(fee: number): TransactionInterface;
   unlock(): Promise<TransactionInterface>;
@@ -172,7 +174,8 @@ export class Transaction implements TransactionInterface {
   withOpReturn(
     value: number = 0,
     assetID: string = this.network.assetHash,
-    hexChunks: string[] = []
+    hexChunks: string[] = [],
+    makeConfidential: boolean = false
   ): this {
     this.psbt.addOutput({
       script: script.compile([
@@ -183,6 +186,11 @@ export class Transaction implements TransactionInterface {
       asset: AssetHash.fromHex(assetID, false).bytes,
       nonce: Buffer.alloc(0),
     });
+    if (makeConfidential) {
+      const blindKey = randomBytes(33);
+      const index = this.psbt.data.outputs.length - 1;
+      this.outputBlindingPubKeys.set(index, blindKey);
+    }
     return this;
   }
 
